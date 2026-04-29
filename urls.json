@@ -1,0 +1,8 @@
+{
+  "urls": [
+    {
+      "name": "a",
+      "url": "https://api.datosabiertos.mef.gob.pe/DatosAbiertos/v1/datastore_search?resource_id=228c2d8b-f58f-435c-bf96-c7556e8c537d"
+    }
+  ]
+}

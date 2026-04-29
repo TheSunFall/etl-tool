@@ -11,4 +11,14 @@
 - `uv sync`
 
 # Uso
-`uv run main.py -h`
+Ejecución del web scrapper:
+`uv run scrapper/fetch.py -s [año inicio] -e [año fin]
+`uv run main.py stage --all -o --gen-schema`
+
+# Features
+## Stage
+### `-o` `--optimize`
+
+The `--optimize` flag evaluates the data sizes and fits column sizes to the maximum of them. For example, it may shrink INTEGER to SMALLINT or String(max) to String(100).
+
+Keep in mind that the evaluation is performed only on the sample, so it may fail if a bigger value was not in the first rows. To reduce the chances of this happening, increase the value of `--sample-size`.

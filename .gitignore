@@ -15,4 +15,6 @@ wheels/
 # Data cache
 *.xlsx
 *.xlsx#
+*.parquet
+*.csv
 temp/

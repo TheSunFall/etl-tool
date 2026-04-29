@@ -7,6 +7,7 @@ load_dotenv()
 
 metadata = MetaData()
 
+
 def __create_url(database: str):
     return URL.create(
         "mssql+pyodbc",
@@ -25,36 +26,23 @@ def __create_url(database: str):
 
 def create_databases(name: str):
     """
-    Create both the DIM and STAGE (empty) databases.
-
-    :param name: Name for the database
+    Create the database and the specified schemas
     """
     engine = create_engine(__create_url("master"))
 
     # autocommit prevents sqlalchemy from opening a transaction, causing database commands to fail
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        conn.execute(text(f"IF DB_ID('DMT_{name}') IS NULL CREATE DATABASE DMT_{name}"))
-        conn.execute(
-            text(f"IF DB_ID('STAGE_{name}') IS NULL CREATE DATABASE STAGE_{name}")
-        )
+        conn.execute(text(f"IF DB_ID('{name}') IS NULL CREATE DATABASE {name}"))
         conn.close()
 
 
-def get_engine(database: str, type: str):
+def get_engine(database: str):
     """
     Returns the engines for the DMT or STAGE databases for the specified dataset
 
     :param database: Name of the database
-    :param type: Connect to either "DMT" or "STAGE" database
 
     """
-    if type == "DMT":
-        return create_engine(
-            __create_url(f"DMT{database}"), connect_args={"fast_executemany": True}
-        )
-    elif type == "STAGE":
-        return create_engine(
-            __create_url(f"STAGE_{database}"), connect_args={"fast_executemany": True}
-        )
-    else:
-        raise ValueError("Type must be STAGE or DMT")
+    return create_engine(
+        __create_url(database), connect_args={"fast_executemany": True}
+    )

@@ -1,6 +1,22 @@
 import polars as pl
-from sqlalchemy import Integer, Numeric, String, DateTime
+import polars.selectors as cs
+import math
+from sqlalchemy import SmallInteger, Integer, BigInteger, Numeric, String, Date, DateTime
 
+
+def __get_str_size(col: pl.Expr):
+    return col.str.len_chars().max()
+
+def _get_intsize(col: pl.Expr):
+    max = col.max()
+    if max < 32_767:
+        return 's'
+    elif max < 2_147_483_647:
+        return 'i'
+    else:
+        return 'b'
+    
+    
 
 def find_functional_dependencies(df: pl.DataFrame, key_col: str):
     agg_exprs = [
@@ -32,7 +48,7 @@ def sanitize_df(df: pl.DataFrame):
     return df
 
 
-def map_type(dtype, sample = None):
+def map_type(dtype):
     if 'i64' in str(dtype) or 'int' in str(dtype).lower():
         return Integer
     elif "float" in str(dtype).lower():
@@ -41,6 +57,34 @@ def map_type(dtype, sample = None):
         return DateTime
     else:
         return String
+    
+
+def map_dtype2(dtype, col: pl.Expr = None):
+    if 'int' in str(dtype).lower():
+        rowtype = Integer
+    elif "float" in str(dtype).lower():
+        rowtype = Numeric
+    elif dtype == pl.Date:
+        rowtype = Date
+    elif dtype == pl.Datetime:
+        rowtype == pl.Datetime
+    else:
+        rowtype = String
+    if col is not None:
+        if rowtype == String:
+            size = __get_str_size(col)
+            size = math.ceil(size / 50) * 50
+            rowtype = String(size)
+        elif rowtype == Integer:
+            match _get_intsize(col):
+                case 's':
+                    rowtype == SmallInteger
+                case 'i':
+                    rowtype == Integer
+                case 'b':
+                    rowtype == BigInteger
+    return rowtype
+        
     
 if __name__ == "__main__":
     from extract import read_sample

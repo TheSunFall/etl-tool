@@ -1,0 +1,15 @@
+Campos globales (debe estar en todos los módulos): idmunici, ccdd, ccpp, ccdi, Ubigeo, Departamento, Provincia, Distrito, Tipomuni
+Módulo I: VFI, desde P04_1 hasta P10_6
+Módulo II: VFI_P11A, desde P11A_1 hasta P18_Portal
+Módulo III: VFI_P19, desde P19 hasta P22_C24_O
+Módulo IV: VFI_P23, desde P23_1 hasta P34A_31_O
+Módulo V: VFI_P35, desde P35_1 hasta P39B_3
+Módulo VI: VFI_P40, desde P40_1 hasta P50F_C
+Módulo VII: VFI_P51, desde P51 hasta P59_11_O
+Módulo VIII: VFI_P60A, desde P60A_1 hasta P63
+Módulo IX: VFI_P64, desde P64 hasta P80_10
+Módulo X: VFI_P84A, desde P84A hasta P90_7
+Módulo XI: VFI_P94, desde P94_1 hasta P99_11
+Módulo XII: VFI_P100, desde P100_1 hasta P102_2
+Módulo XIII: VFI_C96, desde C96 hasta C97_3
+

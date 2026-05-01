@@ -24,6 +24,25 @@ def __create_url(database: str):
     )
 
 
+def drop_databases(name: str):
+    """
+    Create the database and the specified schemas
+    """
+    engine = create_engine(__create_url("master"))
+
+    # autocommit prevents sqlalchemy from opening a transaction, causing database commands to fail
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(
+            text(f"""IF DB_ID('{name}') IS NOT NULL
+                 BEGIN
+                ALTER DATABASE {name} SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                DROP DATABASE {name}
+                END
+        """)
+        )
+        conn.close()
+
+
 def create_databases(name: str):
     """
     Create the database and the specified schemas

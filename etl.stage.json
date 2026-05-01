@@ -1,58 +1,79 @@
 {
   "datasets": [
     {
-      "dataset": "2020-INGRESO.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "ingreso_raw",
-      "schema": "bronze"
+      "SIAF": {
+        "database": "DW_INGRESOS_MEF",
+        "schema": "bronze",
+        "tables": [
+          {
+            "names": ["INGRESO"],
+            "years": [2023, 2024, 2025],
+            "variants": {"2025": ["DIARIO", "MENSUAL"]},
+            "type": "parquet",
+            "tablename": "ingreso_raw"
+          }
+        ]
+      }
     },
     {
-      "dataset": "RENAMU_REGISTRO_NACIONAL_DE_MUNICIPALIDADES_(RENAMU)_2020_-_[INSTITUTO_NACIONAL_DE_ESTADÍSTICA_E_INFORMÁTICA_-_INEI].csv",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "renamu_municipalidades_2020_raw",
-      "schema": "bronze"
+      "RENAMU": {
+        "database": "DW_INGRESOS_MEF",
+        "schema": "bronze",
+        "tables": [
+          {
+            "names": ["RENAMU"],
+            "years": [2023, 2024, 2025],
+            "modules": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"],
+            "type": "parquet",
+            "subdir": "RENAMU_modules",
+            "filename_format": "RENAMU_{year}_modulo_{module}.parquet",
+            "tablename": "renamu_municipalidades_raw"
+          }
+        ]
+      }
     },
     {
-      "dataset": "RENTAS_ANO_APLICACION.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_anio_aplicacion_raw",
-      "schema": "bronze"
-    },
-    {
-      "dataset": "RENTAS_ENTIDAD_ESTADO.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_entidad_estado_raw",
-      "schema": "bronze"
-    },
-    {
-      "dataset": "RENTAS_ESAT_ESTADISTICA_ATM.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_esat_estadistica_atm_raw",
-      "schema": "bronze"
-    },
-    {
-      "dataset": "RENTAS_ESTADISTICA.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_estadistica_raw",
-      "schema": "bronze"
-    },
-    {
-      "dataset": "RENTAS_FORMULARIO.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_formulario_raw",
-      "schema": "bronze"
-    },
-    {
-      "dataset": "RENTAS_PREGUNTAS.parquet",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_preguntas_raw",
-      "schema": "bronze"
-    },
-    {
-      "dataset": "RENTAS_RESPUESTAS.csv",
-      "database": "DW_INGRESOS_MEF",
-      "tablename": "rentas_respuestas_raw",
-      "schema": "bronze"
+      "RENTAS": {
+        "database": "DW_INGRESOS_MEF",
+        "schema": "bronze",
+        "tables": [
+          {
+            "names": ["RENTAS_ANO_APLICACION"],
+            "type": "parquet",
+            "tablename": "rentas_anio_aplicacion_raw"
+          },
+          {
+            "names": ["RENTAS_ENTIDAD_ESTADO"],
+            "type": "parquet",
+            "tablename": "rentas_entidad_estado_raw"
+          },
+          {
+            "names": ["RENTAS_ESAT_ESTADISTICA_ATM"],
+            "type": "parquet",
+            "tablename": "rentas_esat_estadistica_atm_raw"
+          },
+          {
+            "names": ["RENTAS_ESTADISTICA"],
+            "type": "parquet",
+            "tablename": "rentas_estadistica_raw"
+          },
+          {
+            "names": ["RENTAS_FORMULARIO"],
+            "type": "parquet",
+            "tablename": "rentas_formulario_raw"
+          },
+          {
+            "names": ["RENTAS_PREGUNTAS"],
+            "type": "parquet",
+            "tablename": "rentas_preguntas_raw"
+          },
+          {
+            "names": ["RENTAS_RESPUESTAS"],
+            "type": "parquet",
+            "tablename": "rentas_respuestas_raw"
+          }
+        ]
+      }
     }
   ]
 }

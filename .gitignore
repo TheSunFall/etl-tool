@@ -6,6 +6,10 @@ dist/
 wheels/
 *.egg-info
 
+# Editor config
+.vscode/
+.idea/
+
 # Env variables
 .env
 
@@ -13,6 +17,7 @@ wheels/
 .venv
 
 # Data cache
+data/
 *.xlsx
 *.xlsx#
 *.parquet

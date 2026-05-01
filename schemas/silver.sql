@@ -1,0 +1,969 @@
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'silver')
+    EXEC('CREATE SCHEMA silver');
+GO
+
+/* ============================================================
+   1) MOVER TABLAS EXISTENTES dbo.DIM_* y dbo.FACT_* a silver
+   ============================================================ */
+DECLARE @moveSql NVARCHAR(MAX) = N'';
+
+SELECT @moveSql = @moveSql +
+    N'IF OBJECT_ID(N''silver.' + REPLACE(t.name,'''','''''') + N''', N''U'') IS NULL
+      AND OBJECT_ID(N''dbo.' + REPLACE(t.name,'''','''''') + N''', N''U'') IS NOT NULL
+      ALTER SCHEMA silver TRANSFER dbo.' + QUOTENAME(t.name) + N';' + CHAR(10)
+FROM sys.tables t
+WHERE t.schema_id = SCHEMA_ID('dbo')
+  AND (t.name LIKE 'DIM[_]%' OR t.name LIKE 'FACT[_]%');
+
+EXEC sp_executesql @moveSql;
+GO
+
+/* ============================================================
+   2) CREAR TABLAS SILVER SI NO EXISTEN
+   ============================================================ */
+
+IF OBJECT_ID('silver.DIM_EJECUTORA', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_EJECUTORA
+    (
+        IdEjecutora      INT IDENTITY(1,1) PRIMARY KEY,
+        SEC_EJEC         NVARCHAR(MAX) NOT NULL,
+        EJECUTORA        NVARCHAR(MAX) NOT NULL,
+        EJECUTORA_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_ESPECIFICA', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_ESPECIFICA
+    (
+        IdEspecifica          INT IDENTITY(1,1) PRIMARY KEY,
+        ESPECIFICA            NVARCHAR(MAX) NOT NULL,
+        ESPECIFICA_NOMBRE     NVARCHAR(MAX) NOT NULL,
+        ESPECIFICA_DET        NVARCHAR(MAX) NOT NULL,
+        ESPECIFICA_DET_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_FORMULARIO_SISMEPRE', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_FORMULARIO_SISMEPRE
+    (
+        IdFormSismepre  INT IDENTITY(1,1) PRIMARY KEY,
+        FORMULARIO_ID   NVARCHAR(MAX) NOT NULL,
+        TITULO          NVARCHAR(MAX) NOT NULL,
+        SUBTITULO       NVARCHAR(MAX) NOT NULL,
+        ABREVIATURA     NVARCHAR(MAX) NOT NULL,
+        CLASIFICACION   NVARCHAR(MAX) NOT NULL,
+        TIPO_FORMULARIO NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_FUENTE_FINANCIAMIENTO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_FUENTE_FINANCIAMIENTO
+    (
+        IdFuenteFinanciamiento       INT IDENTITY(1,1) PRIMARY KEY,
+        FUENTE_FINANCIAMIENTO        NVARCHAR(MAX) NOT NULL,
+        FUENTE_FINANCIAMIENTO_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_GENERICA', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_GENERICA
+    (
+        IdGenerica             INT IDENTITY(1,1) PRIMARY KEY,
+        GENERICA               NVARCHAR(MAX) NOT NULL,
+        GENERICA_NOMBRE        NVARCHAR(MAX) NOT NULL,
+        SUBGENERICA            NVARCHAR(MAX) NOT NULL,
+        SUBGENERICA_NOMBRE     NVARCHAR(MAX) NOT NULL,
+        SUBGENERICA_DET        NVARCHAR(MAX) NOT NULL,
+        SUBGENERICA_DET_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_NIVEL_GOBIERNO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_NIVEL_GOBIERNO
+    (
+        IdNivelGobierno       INT IDENTITY(1,1) PRIMARY KEY,
+        NIVEL_GOBIERNO        NVARCHAR(MAX) NOT NULL,
+        NIVEL_GOBIERNO_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_PLIEGO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_PLIEGO
+    (
+        IdPliego      INT IDENTITY(1,1) PRIMARY KEY,
+        PLIEGO        NVARCHAR(MAX) NOT NULL,
+        PLIEGO_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_PREGUNTA_RENAMU', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_PREGUNTA_RENAMU
+    (
+        IdPregunta   INT IDENTITY(1,1) PRIMARY KEY,
+        IdPadre      INT NULL,
+        NOMBRE_CAMPO NVARCHAR(MAX) NOT NULL,
+        DESCRIPCION  NVARCHAR(MAX) NOT NULL,
+        VALOR        NVARCHAR(MAX) NOT NULL,
+        METADATA     NVARCHAR(MAX) NOT NULL,
+        CONSTRAINT FK_DIM_PREGUNTA_RENAMU_PADRE
+            FOREIGN KEY (IdPadre) REFERENCES silver.DIM_PREGUNTA_RENAMU(IdPregunta)
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_RUBRO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_RUBRO
+    (
+        IdRubro      INT IDENTITY(1,1) PRIMARY KEY,
+        RUBRO        NVARCHAR(MAX) NOT NULL,
+        RUBRO_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_SECTOR', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_SECTOR
+    (
+        IdSector      INT IDENTITY(1,1) PRIMARY KEY,
+        SECTOR        NVARCHAR(MAX) NOT NULL,
+        SECTOR_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_TIEMPO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_TIEMPO
+    (
+        IdTiempo INT NOT NULL PRIMARY KEY,
+        ANIO     INT NOT NULL,
+        MES      INT NULL,
+        DIA      INT NULL,
+        HORA     INT NULL,
+        MINUTO   INT NULL,
+        SEGUNDO  INT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_ANIO_APLICACION', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_ANIO_APLICACION
+    (
+        IdAnioAplicacion      INT IDENTITY(1,1) PRIMARY KEY,
+        ANO_APLICACION        INT NOT NULL,
+        ANO_APLICACION_INICIO INT NOT NULL,
+        ANO_APLICACION_FIN    INT NOT NULL,
+        FECHA_CIERRE          INT NOT NULL,
+        FECHA_PRES_OFICIO     INT NOT NULL,
+        FECHA_INI_CIERRE      INT NOT NULL,
+        FECHA_ING             INT NOT NULL,
+        CONSTRAINT FK_DIM_ANIO_APLICACION_ANO
+            FOREIGN KEY (ANO_APLICACION) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_DIM_ANIO_APLICACION_INICIO
+            FOREIGN KEY (ANO_APLICACION_INICIO) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_DIM_ANIO_APLICACION_FIN
+            FOREIGN KEY (ANO_APLICACION_FIN) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_DIM_ANIO_APLICACION_CIERRE
+            FOREIGN KEY (FECHA_CIERRE) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_DIM_ANIO_APLICACION_PRES_OFICIO
+            FOREIGN KEY (FECHA_PRES_OFICIO) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_DIM_ANIO_APLICACION_INI_CIERRE
+            FOREIGN KEY (FECHA_INI_CIERRE) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_DIM_ANIO_APLICACION_FECHA_ING
+            FOREIGN KEY (FECHA_ING) REFERENCES silver.DIM_TIEMPO(IdTiempo)
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_TIPO_RECURSO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_TIPO_RECURSO
+    (
+        IdTipoRecurso       INT IDENTITY(1,1) PRIMARY KEY,
+        TIPO_RECURSO        NVARCHAR(MAX) NOT NULL,
+        TIPO_RECURSO_NOMBRE NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_UBIGEO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_UBIGEO
+    (
+        IdUbigeo           INT IDENTITY(1,1) PRIMARY KEY,
+        CODIGODEPARTAMENTO INT NOT NULL,
+        DEPARTAMENTO       NVARCHAR(MAX) NOT NULL,
+        CODIGOPROVINCIA    INT NOT NULL,
+        PROVINCIA          NVARCHAR(MAX) NOT NULL,
+        CODIGODISTRITO     INT NOT NULL,
+        DISTRITO           NVARCHAR(MAX) NOT NULL
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.DIM_PREGUNTA_SISMEPRE', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.DIM_PREGUNTA_SISMEPRE
+    (
+        IdPreguntaSismepre   INT IDENTITY(1,1) PRIMARY KEY,
+        IdFormSismepre       INT NOT NULL,
+        PREGUNTA_ID          NVARCHAR(MAX) NOT NULL,
+        PREGUNTA_PADRE_ID    NVARCHAR(MAX) NOT NULL,
+        DESCRIPCION          NVARCHAR(MAX) NOT NULL,
+        TIPO_CUESTIONARIO_ID NVARCHAR(MAX) NOT NULL,
+        CONSTRAINT FK_DIM_PREGUNTA_SISMEPRE_FORM
+            FOREIGN KEY (IdFormSismepre) REFERENCES silver.DIM_FORMULARIO_SISMEPRE(IdFormSismepre)
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.FACT_FORMULARIO_SISMEPRE', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.FACT_FORMULARIO_SISMEPRE
+    (
+        IdEjecutora       INT NOT NULL,
+        IdAnioAplicacion  INT NOT NULL,
+        PERIODO           NVARCHAR(MAX) NOT NULL,
+        IdFormulario      INT NOT NULL,
+        IdPregunta        INT NOT NULL,
+        RESPUESTA_ID      NVARCHAR(MAX) NOT NULL,
+        RESPUESTA_TEXTO   NVARCHAR(MAX) NULL,
+        RESPUESTA_DECIMAL NVARCHAR(MAX) NULL,
+        RESPUESTA_ENTERO  NVARCHAR(MAX) NULL,
+        RESPUESTA_FECHA   NVARCHAR(MAX) NULL,
+        CONSTRAINT FK_FACT_FORM_EJECUTORA FOREIGN KEY (IdEjecutora) REFERENCES silver.DIM_EJECUTORA(IdEjecutora),
+        CONSTRAINT FK_FACT_FORM_ANIO FOREIGN KEY (IdAnioAplicacion) REFERENCES silver.DIM_ANIO_APLICACION(IdAnioAplicacion),
+        CONSTRAINT FK_FACT_FORM_FORMULARIO FOREIGN KEY (IdFormulario) REFERENCES silver.DIM_FORMULARIO_SISMEPRE(IdFormSismepre),
+        CONSTRAINT FK_FACT_FORM_PREGUNTA FOREIGN KEY (IdPregunta) REFERENCES silver.DIM_PREGUNTA_SISMEPRE(IdPreguntaSismepre)
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.FACT_INGRESO_DIARIO', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.FACT_INGRESO_DIARIO
+    (
+        IdTiempo        INT NOT NULL,
+        IdNivelGobierno INT NOT NULL,
+        IdSector        INT NOT NULL,
+        IdPliego        INT NOT NULL,
+        IdEjecutora     INT NOT NULL,
+        IdUbigeo        INT NOT NULL,
+        IdRubro         INT NOT NULL,
+        IdTipoRecurso   INT NOT NULL,
+        IdGenerica      INT NOT NULL,
+        IdEspecifica    INT NOT NULL,
+        MONTO_PIA       DECIMAL(18,2) NOT NULL,
+        MONTO_PIM       DECIMAL(18,2) NOT NULL,
+        MONTO_RECAUDADO DECIMAL(18,2) NOT NULL,
+        CONSTRAINT FK_FACT_ING_TIEMPO FOREIGN KEY (IdTiempo) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_FACT_ING_NIVEL FOREIGN KEY (IdNivelGobierno) REFERENCES silver.DIM_NIVEL_GOBIERNO(IdNivelGobierno),
+        CONSTRAINT FK_FACT_ING_SECTOR FOREIGN KEY (IdSector) REFERENCES silver.DIM_SECTOR(IdSector),
+        CONSTRAINT FK_FACT_ING_PLIEGO FOREIGN KEY (IdPliego) REFERENCES silver.DIM_PLIEGO(IdPliego),
+        CONSTRAINT FK_FACT_ING_EJECUTORA FOREIGN KEY (IdEjecutora) REFERENCES silver.DIM_EJECUTORA(IdEjecutora),
+        CONSTRAINT FK_FACT_ING_UBIGEO FOREIGN KEY (IdUbigeo) REFERENCES silver.DIM_UBIGEO(IdUbigeo),
+        CONSTRAINT FK_FACT_ING_RUBRO FOREIGN KEY (IdRubro) REFERENCES silver.DIM_RUBRO(IdRubro),
+        CONSTRAINT FK_FACT_ING_TIPO_RECURSO FOREIGN KEY (IdTipoRecurso) REFERENCES silver.DIM_TIPO_RECURSO(IdTipoRecurso),
+        CONSTRAINT FK_FACT_ING_GENERICA FOREIGN KEY (IdGenerica) REFERENCES silver.DIM_GENERICA(IdGenerica),
+        CONSTRAINT FK_FACT_ING_ESPECIFICA FOREIGN KEY (IdEspecifica) REFERENCES silver.DIM_ESPECIFICA(IdEspecifica)
+    );
+END;
+GO
+
+IF OBJECT_ID('silver.FACT_RENAMU', 'U') IS NULL
+BEGIN
+    CREATE TABLE silver.FACT_RENAMU
+    (
+        IdTiempo   INT NOT NULL,
+        IdUbigeo   INT NOT NULL,
+        TIPOMUNI   INT NOT NULL,
+        IdPregunta INT NOT NULL,
+        CONSTRAINT FK_FACT_RENAMU_TIEMPO FOREIGN KEY (IdTiempo) REFERENCES silver.DIM_TIEMPO(IdTiempo),
+        CONSTRAINT FK_FACT_RENAMU_UBIGEO FOREIGN KEY (IdUbigeo) REFERENCES silver.DIM_UBIGEO(IdUbigeo),
+        CONSTRAINT FK_FACT_RENAMU_PREGUNTA FOREIGN KEY (IdPregunta) REFERENCES silver.DIM_PREGUNTA_RENAMU(IdPregunta)
+    );
+END;
+GO
+
+/* ============================================================
+   3) AJUSTAR COLUMNAS TEXTO A NVARCHAR(MAX) EN SILVER
+   ============================================================ */
+DECLARE @alterTextSql NVARCHAR(MAX) = N'';
+
+SELECT @alterTextSql = @alterTextSql +
+    N'ALTER TABLE ' + QUOTENAME(TABLE_SCHEMA) + N'.' + QUOTENAME(TABLE_NAME) +
+    N' ALTER COLUMN ' + QUOTENAME(COLUMN_NAME) + N' NVARCHAR(MAX) ' +
+    CASE WHEN IS_NULLABLE = 'NO' THEN N'NOT NULL' ELSE N'NULL' END + N';' + CHAR(10)
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'silver'
+  AND DATA_TYPE IN ('varchar', 'nvarchar', 'char', 'nchar')
+  AND CHARACTER_MAXIMUM_LENGTH <> -1
+  AND COLUMN_NAME NOT IN (
+      SELECT c.name
+      FROM sys.index_columns ic
+      INNER JOIN sys.columns c
+          ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+      INNER JOIN sys.tables t
+          ON ic.object_id = t.object_id
+      INNER JOIN sys.schemas s
+          ON t.schema_id = s.schema_id
+      WHERE s.name = 'silver'
+  );
+
+EXEC sp_executesql @alterTextSql;
+GO
+
+/* ============================================================
+   4) PROCEDIMIENTOS SILVER
+   ============================================================ */
+
+CREATE OR ALTER PROCEDURE silver.sp_Silver_Load_Dimensions_Ingresos
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO silver.DIM_EJECUTORA (SEC_EJEC, EJECUTORA, EJECUTORA_NOMBRE)
+    SELECT DISTINCT
+        CAST(SEC_EJEC AS NVARCHAR(MAX)),
+        CAST(EJECUTORA AS NVARCHAR(MAX)),
+        CAST(EJECUTORA_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE SEC_EJEC IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_EJECUTORA d
+          WHERE d.SEC_EJEC = CAST(b.SEC_EJEC AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_ESPECIFICA (ESPECIFICA, ESPECIFICA_NOMBRE, ESPECIFICA_DET, ESPECIFICA_DET_NOMBRE)
+    SELECT DISTINCT
+        CAST(ESPECIFICA AS NVARCHAR(MAX)),
+        CAST(ESPECIFICA_NOMBRE AS NVARCHAR(MAX)),
+        CAST(ESPECIFICA_DET AS NVARCHAR(MAX)),
+        CAST(ESPECIFICA_DET_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE ESPECIFICA IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_ESPECIFICA d
+          WHERE d.ESPECIFICA = CAST(b.ESPECIFICA AS NVARCHAR(MAX))
+            AND d.ESPECIFICA_DET = CAST(b.ESPECIFICA_DET AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_FUENTE_FINANCIAMIENTO (FUENTE_FINANCIAMIENTO, FUENTE_FINANCIAMIENTO_NOMBRE)
+    SELECT DISTINCT
+        CAST(FUENTE_FINANCIAMIENTO AS NVARCHAR(MAX)),
+        CAST(FUENTE_FINANCIAMIENTO_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE FUENTE_FINANCIAMIENTO IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_FUENTE_FINANCIAMIENTO d
+          WHERE d.FUENTE_FINANCIAMIENTO = CAST(b.FUENTE_FINANCIAMIENTO AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_GENERICA
+    (GENERICA, GENERICA_NOMBRE, SUBGENERICA, SUBGENERICA_NOMBRE, SUBGENERICA_DET, SUBGENERICA_DET_NOMBRE)
+    SELECT DISTINCT
+        CAST(GENERICA AS NVARCHAR(MAX)),
+        CAST(GENERICA_NOMBRE AS NVARCHAR(MAX)),
+        CAST(SUBGENERICA AS NVARCHAR(MAX)),
+        CAST(SUBGENERICA_NOMBRE AS NVARCHAR(MAX)),
+        CAST(SUBGENERICA_DET AS NVARCHAR(MAX)),
+        CAST(SUBGENERICA_DET_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE GENERICA IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_GENERICA d
+          WHERE d.GENERICA = CAST(b.GENERICA AS NVARCHAR(MAX))
+            AND d.SUBGENERICA = CAST(b.SUBGENERICA AS NVARCHAR(MAX))
+            AND d.SUBGENERICA_DET = CAST(b.SUBGENERICA_DET AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_NIVEL_GOBIERNO (NIVEL_GOBIERNO, NIVEL_GOBIERNO_NOMBRE)
+    SELECT DISTINCT
+        CAST(NIVEL_GOBIERNO AS NVARCHAR(MAX)),
+        CAST(NIVEL_GOBIERNO_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE NIVEL_GOBIERNO IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_NIVEL_GOBIERNO d
+          WHERE d.NIVEL_GOBIERNO = CAST(b.NIVEL_GOBIERNO AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_PLIEGO (PLIEGO, PLIEGO_NOMBRE)
+    SELECT DISTINCT
+        CAST(PLIEGO AS NVARCHAR(MAX)),
+        CAST(PLIEGO_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE PLIEGO IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_PLIEGO d
+          WHERE d.PLIEGO = CAST(b.PLIEGO AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_RUBRO (RUBRO, RUBRO_NOMBRE)
+    SELECT DISTINCT
+        CAST(RUBRO AS NVARCHAR(MAX)),
+        CAST(RUBRO_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE RUBRO IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_RUBRO d
+          WHERE d.RUBRO = CAST(b.RUBRO AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_SECTOR (SECTOR, SECTOR_NOMBRE)
+    SELECT DISTINCT
+        CAST(SECTOR AS NVARCHAR(MAX)),
+        CAST(SECTOR_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE SECTOR IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_SECTOR d
+          WHERE d.SECTOR = CAST(b.SECTOR AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_TIPO_RECURSO (TIPO_RECURSO, TIPO_RECURSO_NOMBRE)
+    SELECT DISTINCT
+        CAST(TIPO_RECURSO AS NVARCHAR(MAX)),
+        CAST(TIPO_RECURSO_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE TIPO_RECURSO IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_TIPO_RECURSO d
+          WHERE d.TIPO_RECURSO = CAST(b.TIPO_RECURSO AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_UBIGEO
+    (CODIGODEPARTAMENTO, DEPARTAMENTO, CODIGOPROVINCIA, PROVINCIA, CODIGODISTRITO, DISTRITO)
+    SELECT DISTINCT
+        TRY_CONVERT(INT, DEPARTAMENTO_EJECUTORA),
+        CAST(DEPARTAMENTO_EJECUTORA_NOMBRE AS NVARCHAR(MAX)),
+        TRY_CONVERT(INT, PROVINCIA_EJECUTORA),
+        CAST(PROVINCIA_EJECUTORA_NOMBRE AS NVARCHAR(MAX)),
+        TRY_CONVERT(INT, DISTRITO_EJECUTORA),
+        CAST(DISTRITO_EJECUTORA_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.ingreso_raw b
+    WHERE TRY_CONVERT(INT, DEPARTAMENTO_EJECUTORA) IS NOT NULL
+      AND TRY_CONVERT(INT, PROVINCIA_EJECUTORA) IS NOT NULL
+      AND TRY_CONVERT(INT, DISTRITO_EJECUTORA) IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_UBIGEO d
+          WHERE d.CODIGODEPARTAMENTO = TRY_CONVERT(INT, b.DEPARTAMENTO_EJECUTORA)
+            AND d.CODIGOPROVINCIA = TRY_CONVERT(INT, b.PROVINCIA_EJECUTORA)
+            AND d.CODIGODISTRITO = TRY_CONVERT(INT, b.DISTRITO_EJECUTORA)
+      );
+
+    INSERT INTO silver.DIM_TIEMPO (IdTiempo, ANIO, MES, DIA, HORA, MINUTO, SEGUNDO)
+    SELECT DISTINCT
+        TRY_CONVERT(INT, ANO_DOC) * 100 + TRY_CONVERT(INT, MES_DOC),
+        TRY_CONVERT(INT, ANO_DOC),
+        TRY_CONVERT(INT, MES_DOC),
+        NULL, NULL, NULL, NULL
+    FROM bronze.ingreso_raw b
+    WHERE TRY_CONVERT(INT, ANO_DOC) IS NOT NULL
+      AND TRY_CONVERT(INT, MES_DOC) IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_TIEMPO d
+          WHERE d.IdTiempo = TRY_CONVERT(INT, b.ANO_DOC) * 100 + TRY_CONVERT(INT, b.MES_DOC)
+      );
+END;
+GO
+
+CREATE OR ALTER PROCEDURE silver.sp_Silver_Load_Dimensions_Sismepre
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM silver.DIM_TIEMPO WHERE IdTiempo = 0)
+    BEGIN
+        INSERT INTO silver.DIM_TIEMPO (IdTiempo, ANIO, MES, DIA, HORA, MINUTO, SEGUNDO)
+        VALUES (0, 0, NULL, NULL, NULL, NULL, NULL);
+    END;
+
+    INSERT INTO silver.DIM_TIEMPO (IdTiempo, ANIO, MES, DIA, HORA, MINUTO, SEGUNDO)
+    SELECT DISTINCT
+        v.Anio,
+        v.Anio,
+        NULL, NULL, NULL, NULL, NULL
+    FROM bronze.rentas_anio_aplicacion_raw b
+    CROSS APPLY (VALUES
+        (TRY_CONVERT(INT, b.ANO_APLICACION)),
+        (TRY_CONVERT(INT, b.ANO_APLICACION_INICIO)),
+        (TRY_CONVERT(INT, b.ANO_APLICACION_FIN))
+    ) v(Anio)
+    WHERE v.Anio IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM silver.DIM_TIEMPO d WHERE d.IdTiempo = v.Anio);
+
+    INSERT INTO silver.DIM_ANIO_APLICACION
+    (ANO_APLICACION, ANO_APLICACION_INICIO, ANO_APLICACION_FIN, FECHA_CIERRE, FECHA_PRES_OFICIO, FECHA_INI_CIERRE, FECHA_ING)
+    SELECT DISTINCT
+        ISNULL(TRY_CONVERT(INT, ANO_APLICACION), 0),
+        ISNULL(TRY_CONVERT(INT, ANO_APLICACION_INICIO), 0),
+        ISNULL(TRY_CONVERT(INT, ANO_APLICACION_FIN), 0),
+        0, 0, 0, 0
+    FROM bronze.rentas_anio_aplicacion_raw b
+    WHERE TRY_CONVERT(INT, ANO_APLICACION) IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_ANIO_APLICACION d
+          WHERE d.ANO_APLICACION = TRY_CONVERT(INT, b.ANO_APLICACION)
+      );
+
+    INSERT INTO silver.DIM_FORMULARIO_SISMEPRE
+    (FORMULARIO_ID, TITULO, SUBTITULO, ABREVIATURA, CLASIFICACION, TIPO_FORMULARIO)
+    SELECT DISTINCT
+        CAST(FORMULARIO_ID AS NVARCHAR(MAX)),
+        CAST(TITULO AS NVARCHAR(MAX)),
+        CAST(SUB_TITULO AS NVARCHAR(MAX)),
+        CAST(ABREVIATURA AS NVARCHAR(MAX)),
+        CAST(CLASIFICACION AS NVARCHAR(MAX)),
+        CAST(TIPO_FORMULARIO AS NVARCHAR(MAX))
+    FROM bronze.rentas_formulario_raw b
+    WHERE FORMULARIO_ID IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_FORMULARIO_SISMEPRE d
+          WHERE d.FORMULARIO_ID = CAST(b.FORMULARIO_ID AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_PREGUNTA_SISMEPRE
+    (IdFormSismepre, PREGUNTA_ID, PREGUNTA_PADRE_ID, DESCRIPCION, TIPO_CUESTIONARIO_ID)
+    SELECT DISTINCT
+        f.IdFormSismepre,
+        CAST(p.PREGUNTA_ID AS NVARCHAR(MAX)),
+        CAST(ISNULL(p.PREGUNTA_PADRE_ID, 0) AS NVARCHAR(MAX)),
+        CAST(p.DESCRIPCION AS NVARCHAR(MAX)),
+        CAST(p.TIPO_CUESTIONARIO_ID AS NVARCHAR(MAX))
+    FROM bronze.rentas_preguntas_raw p
+    INNER JOIN silver.DIM_FORMULARIO_SISMEPRE f
+        ON f.FORMULARIO_ID = CAST(p.FORMULARIO_ID AS NVARCHAR(MAX))
+    WHERE p.PREGUNTA_ID IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_PREGUNTA_SISMEPRE d
+          WHERE d.PREGUNTA_ID = CAST(p.PREGUNTA_ID AS NVARCHAR(MAX))
+            AND d.IdFormSismepre = f.IdFormSismepre
+      );
+
+    INSERT INTO silver.DIM_EJECUTORA (SEC_EJEC, EJECUTORA, EJECUTORA_NOMBRE)
+    SELECT DISTINCT
+        CAST(SEC_EJEC AS NVARCHAR(MAX)),
+        CAST(SEC_EJEC AS NVARCHAR(MAX)),
+        CAST(MUNICIPALIDAD_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.rentas_esat_estadistica_atm_raw b
+    WHERE SEC_EJEC IS NOT NULL
+      AND MUNICIPALIDAD_NOMBRE IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_EJECUTORA d
+          WHERE d.SEC_EJEC = CAST(b.SEC_EJEC AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_EJECUTORA (SEC_EJEC, EJECUTORA, EJECUTORA_NOMBRE)
+    SELECT DISTINCT
+        CAST(SEC_EJEC AS NVARCHAR(MAX)),
+        CAST(SEC_EJEC AS NVARCHAR(MAX)),
+        CAST(SEC_EJEC AS NVARCHAR(MAX))
+    FROM bronze.rentas_respuestas_raw b
+    WHERE SEC_EJEC IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_EJECUTORA d
+          WHERE d.SEC_EJEC = CAST(b.SEC_EJEC AS NVARCHAR(MAX))
+      );
+
+    INSERT INTO silver.DIM_UBIGEO
+    (CODIGODEPARTAMENTO, DEPARTAMENTO, CODIGOPROVINCIA, PROVINCIA, CODIGODISTRITO, DISTRITO)
+    SELECT DISTINCT
+        TRY_CONVERT(INT, DEPARTAMENTO),
+        CAST(DEPARTAMENTO_NOMBRE AS NVARCHAR(MAX)),
+        TRY_CONVERT(INT, PROVINCIA),
+        CAST(PROVINCIA_NOMBRE AS NVARCHAR(MAX)),
+        TRY_CONVERT(INT, DISTRITO),
+        CAST(DISTRITO_NOMBRE AS NVARCHAR(MAX))
+    FROM bronze.rentas_esat_estadistica_atm_raw b
+    WHERE TRY_CONVERT(INT, DEPARTAMENTO) IS NOT NULL
+      AND TRY_CONVERT(INT, PROVINCIA) IS NOT NULL
+      AND TRY_CONVERT(INT, DISTRITO) IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_UBIGEO d
+          WHERE d.CODIGODEPARTAMENTO = TRY_CONVERT(INT, b.DEPARTAMENTO)
+            AND d.CODIGOPROVINCIA = TRY_CONVERT(INT, b.PROVINCIA)
+            AND d.CODIGODISTRITO = TRY_CONVERT(INT, b.DISTRITO)
+      );
+END;
+GO
+
+CREATE OR ALTER PROCEDURE silver.sp_Silver_Load_Fact_Ingreso_Diario
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM silver.FACT_INGRESO_DIARIO;
+
+    ;WITH
+    dim_tiempo AS (
+        SELECT IdTiempo FROM silver.DIM_TIEMPO
+    ),
+    dim_nivel AS (
+        SELECT IdNivelGobierno, CAST(NIVEL_GOBIERNO AS NVARCHAR(50)) AS NIVEL_GOBIERNO
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(NIVEL_GOBIERNO AS NVARCHAR(50)) ORDER BY IdNivelGobierno) AS rn
+            FROM silver.DIM_NIVEL_GOBIERNO
+        ) x
+        WHERE rn = 1
+    ),
+    dim_sector AS (
+        SELECT IdSector, CAST(SECTOR AS NVARCHAR(50)) AS SECTOR
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(SECTOR AS NVARCHAR(50)) ORDER BY IdSector) AS rn
+            FROM silver.DIM_SECTOR
+        ) x
+        WHERE rn = 1
+    ),
+    dim_pliego AS (
+        SELECT IdPliego, CAST(PLIEGO AS NVARCHAR(50)) AS PLIEGO
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(PLIEGO AS NVARCHAR(50)) ORDER BY IdPliego) AS rn
+            FROM silver.DIM_PLIEGO
+        ) x
+        WHERE rn = 1
+    ),
+    dim_ejecutora AS (
+        SELECT IdEjecutora, CAST(SEC_EJEC AS NVARCHAR(50)) AS SEC_EJEC
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(SEC_EJEC AS NVARCHAR(50)) ORDER BY IdEjecutora) AS rn
+            FROM silver.DIM_EJECUTORA
+        ) x
+        WHERE rn = 1
+    ),
+    dim_ubigeo AS (
+        SELECT IdUbigeo, CODIGODEPARTAMENTO, CODIGOPROVINCIA, CODIGODISTRITO
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY CODIGODEPARTAMENTO, CODIGOPROVINCIA, CODIGODISTRITO
+                ORDER BY IdUbigeo
+            ) AS rn
+            FROM silver.DIM_UBIGEO
+        ) x
+        WHERE rn = 1
+    ),
+    dim_rubro AS (
+        SELECT IdRubro, CAST(RUBRO AS NVARCHAR(50)) AS RUBRO
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(RUBRO AS NVARCHAR(50)) ORDER BY IdRubro) AS rn
+            FROM silver.DIM_RUBRO
+        ) x
+        WHERE rn = 1
+    ),
+    dim_tipo_recurso AS (
+        SELECT IdTipoRecurso, CAST(TIPO_RECURSO AS NVARCHAR(50)) AS TIPO_RECURSO
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(TIPO_RECURSO AS NVARCHAR(50)) ORDER BY IdTipoRecurso) AS rn
+            FROM silver.DIM_TIPO_RECURSO
+        ) x
+        WHERE rn = 1
+    ),
+    dim_generica AS (
+        SELECT
+            IdGenerica,
+            CAST(GENERICA AS NVARCHAR(50)) AS GENERICA,
+            CAST(SUBGENERICA AS NVARCHAR(50)) AS SUBGENERICA,
+            CAST(SUBGENERICA_DET AS NVARCHAR(50)) AS SUBGENERICA_DET
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY
+                    CAST(GENERICA AS NVARCHAR(50)),
+                    CAST(SUBGENERICA AS NVARCHAR(50)),
+                    CAST(SUBGENERICA_DET AS NVARCHAR(50))
+                ORDER BY IdGenerica
+            ) AS rn
+            FROM silver.DIM_GENERICA
+        ) x
+        WHERE rn = 1
+    ),
+    dim_especifica AS (
+        SELECT
+            IdEspecifica,
+            CAST(ESPECIFICA AS NVARCHAR(50)) AS ESPECIFICA,
+            CAST(ESPECIFICA_DET AS NVARCHAR(50)) AS ESPECIFICA_DET
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY
+                    CAST(ESPECIFICA AS NVARCHAR(50)),
+                    CAST(ESPECIFICA_DET AS NVARCHAR(50))
+                ORDER BY IdEspecifica
+            ) AS rn
+            FROM silver.DIM_ESPECIFICA
+        ) x
+        WHERE rn = 1
+    )
+    INSERT INTO silver.FACT_INGRESO_DIARIO
+    (
+        IdTiempo,
+        IdNivelGobierno,
+        IdSector,
+        IdPliego,
+        IdEjecutora,
+        IdUbigeo,
+        IdRubro,
+        IdTipoRecurso,
+        IdGenerica,
+        IdEspecifica,
+        MONTO_PIA,
+        MONTO_PIM,
+        MONTO_RECAUDADO
+    )
+    SELECT
+        t.IdTiempo,
+        ng.IdNivelGobierno,
+        s.IdSector,
+        p.IdPliego,
+        e.IdEjecutora,
+        u.IdUbigeo,
+        r.IdRubro,
+        tr.IdTipoRecurso,
+        g.IdGenerica,
+        esp.IdEspecifica,
+        ISNULL(TRY_CONVERT(DECIMAL(18,2), b.MONTO_PIA), 0),
+        ISNULL(TRY_CONVERT(DECIMAL(18,2), b.MONTO_PIM), 0),
+        ISNULL(TRY_CONVERT(DECIMAL(18,2), b.MONTO_RECAUDADO), 0)
+    FROM bronze.ingreso_raw b
+    INNER JOIN dim_tiempo t
+        ON t.IdTiempo = TRY_CONVERT(INT, b.ANO_DOC) * 100 + TRY_CONVERT(INT, b.MES_DOC)
+    INNER JOIN dim_nivel ng
+        ON ng.NIVEL_GOBIERNO = CAST(b.NIVEL_GOBIERNO AS NVARCHAR(50))
+    INNER JOIN dim_sector s
+        ON s.SECTOR = CAST(b.SECTOR AS NVARCHAR(50))
+    INNER JOIN dim_pliego p
+        ON p.PLIEGO = CAST(b.PLIEGO AS NVARCHAR(50))
+    INNER JOIN dim_ejecutora e
+        ON e.SEC_EJEC = CAST(b.SEC_EJEC AS NVARCHAR(50))
+    INNER JOIN dim_ubigeo u
+        ON u.CODIGODEPARTAMENTO = TRY_CONVERT(INT, b.DEPARTAMENTO_EJECUTORA)
+       AND u.CODIGOPROVINCIA = TRY_CONVERT(INT, b.PROVINCIA_EJECUTORA)
+       AND u.CODIGODISTRITO = TRY_CONVERT(INT, b.DISTRITO_EJECUTORA)
+    INNER JOIN dim_rubro r
+        ON r.RUBRO = CAST(b.RUBRO AS NVARCHAR(50))
+    INNER JOIN dim_tipo_recurso tr
+        ON tr.TIPO_RECURSO = CAST(b.TIPO_RECURSO AS NVARCHAR(50))
+    INNER JOIN dim_generica g
+        ON g.GENERICA = CAST(b.GENERICA AS NVARCHAR(50))
+       AND g.SUBGENERICA = CAST(b.SUBGENERICA AS NVARCHAR(50))
+       AND g.SUBGENERICA_DET = CAST(b.SUBGENERICA_DET AS NVARCHAR(50))
+    INNER JOIN dim_especifica esp
+        ON esp.ESPECIFICA = CAST(b.ESPECIFICA AS NVARCHAR(50))
+       AND esp.ESPECIFICA_DET = CAST(b.ESPECIFICA_DET AS NVARCHAR(50));
+END;
+GO
+
+CREATE OR ALTER PROCEDURE silver.sp_Silver_Load_Fact_Formulario_Sismepre
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM silver.FACT_FORMULARIO_SISMEPRE;
+
+    ;WITH
+    dim_ejecutora AS (
+        SELECT IdEjecutora, CAST(SEC_EJEC AS NVARCHAR(50)) AS SEC_EJEC
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(SEC_EJEC AS NVARCHAR(50)) ORDER BY IdEjecutora) AS rn
+            FROM silver.DIM_EJECUTORA
+        ) x
+        WHERE rn = 1
+    ),
+    dim_anio AS (
+        SELECT IdAnioAplicacion, ANO_APLICACION
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY ANO_APLICACION ORDER BY IdAnioAplicacion) AS rn
+            FROM silver.DIM_ANIO_APLICACION
+        ) x
+        WHERE rn = 1
+    ),
+    dim_formulario AS (
+        SELECT IdFormSismepre, CAST(FORMULARIO_ID AS NVARCHAR(50)) AS FORMULARIO_ID
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY CAST(FORMULARIO_ID AS NVARCHAR(50)) ORDER BY IdFormSismepre) AS rn
+            FROM silver.DIM_FORMULARIO_SISMEPRE
+        ) x
+        WHERE rn = 1
+    ),
+    dim_pregunta AS (
+        SELECT IdPreguntaSismepre, IdFormSismepre, CAST(PREGUNTA_ID AS NVARCHAR(50)) AS PREGUNTA_ID
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY IdFormSismepre, CAST(PREGUNTA_ID AS NVARCHAR(50))
+                ORDER BY IdPreguntaSismepre
+            ) AS rn
+            FROM silver.DIM_PREGUNTA_SISMEPRE
+        ) x
+        WHERE rn = 1
+    )
+    INSERT INTO silver.FACT_FORMULARIO_SISMEPRE
+    (
+        IdEjecutora,
+        IdAnioAplicacion,
+        PERIODO,
+        IdFormulario,
+        IdPregunta,
+        RESPUESTA_ID,
+        RESPUESTA_TEXTO,
+        RESPUESTA_DECIMAL,
+        RESPUESTA_ENTERO,
+        RESPUESTA_FECHA
+    )
+    SELECT
+        e.IdEjecutora,
+        aa.IdAnioAplicacion,
+        CAST(r.PERIODO AS NVARCHAR(MAX)),
+        f.IdFormSismepre,
+        p.IdPreguntaSismepre,
+        CAST(r.RESPUESTA_ID AS NVARCHAR(MAX)),
+        CAST(r.RESPUESTA_TEXTO AS NVARCHAR(MAX)),
+        CAST(r.RESPUESTA_DECIMAL AS NVARCHAR(MAX)),
+        CAST(r.RESPUESTA_ENTERO AS NVARCHAR(MAX)),
+        CAST(r.RESPUESTA_FECHA AS NVARCHAR(MAX))
+    FROM bronze.rentas_respuestas_raw r
+    INNER JOIN dim_ejecutora e
+        ON e.SEC_EJEC = CAST(r.SEC_EJEC AS NVARCHAR(50))
+    INNER JOIN dim_anio aa
+        ON aa.ANO_APLICACION = TRY_CONVERT(INT, r.ANO_APLICACION)
+    INNER JOIN dim_formulario f
+        ON f.FORMULARIO_ID = CAST(r.FORMULARIO_ID AS NVARCHAR(50))
+    INNER JOIN dim_pregunta p
+        ON p.PREGUNTA_ID = CAST(r.PREGUNTA_ID AS NVARCHAR(50))
+       AND p.IdFormSismepre = f.IdFormSismepre;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE silver.sp_Silver_Load_Renamu
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM silver.DIM_TIEMPO WHERE IdTiempo = 2020)
+    BEGIN
+        INSERT INTO silver.DIM_TIEMPO (IdTiempo, ANIO, MES, DIA, HORA, MINUTO, SEGUNDO)
+        VALUES (2020, 2020, NULL, NULL, NULL, NULL, NULL);
+    END;
+
+    INSERT INTO silver.DIM_UBIGEO
+    (CODIGODEPARTAMENTO, DEPARTAMENTO, CODIGOPROVINCIA, PROVINCIA, CODIGODISTRITO, DISTRITO)
+    SELECT DISTINCT
+        TRY_CONVERT(INT, ccdd),
+        CAST(Departamento AS NVARCHAR(MAX)),
+        TRY_CONVERT(INT, ccpp),
+        CAST(Provincia AS NVARCHAR(MAX)),
+        TRY_CONVERT(INT, ccdi),
+        CAST(Distrito AS NVARCHAR(MAX))
+    FROM bronze.renamu_municipalidades_2020_raw r
+    WHERE TRY_CONVERT(INT, ccdd) IS NOT NULL
+      AND TRY_CONVERT(INT, ccpp) IS NOT NULL
+      AND TRY_CONVERT(INT, ccdi) IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.DIM_UBIGEO u
+          WHERE u.CODIGODEPARTAMENTO = TRY_CONVERT(INT, r.ccdd)
+            AND u.CODIGOPROVINCIA = TRY_CONVERT(INT, r.ccpp)
+            AND u.CODIGODISTRITO = TRY_CONVERT(INT, r.ccdi)
+      );
+
+    DELETE FROM silver.FACT_RENAMU;
+
+    DECLARE @values NVARCHAR(MAX);
+    DECLARE @sql NVARCHAR(MAX);
+
+    SELECT @values = STRING_AGG(
+        CAST('(''' + COLUMN_NAME + ''', CAST(r.' + QUOTENAME(COLUMN_NAME) + ' AS NVARCHAR(MAX)))' AS NVARCHAR(MAX)),
+        ','
+    )
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'bronze'
+      AND TABLE_NAME = 'renamu_municipalidades_2020_raw'
+      AND (COLUMN_NAME LIKE 'P%' OR COLUMN_NAME = 'VFI');
+
+    IF @values IS NULL
+    BEGIN
+        RAISERROR('No se encontraron columnas RENAMU tipo P%% o VFI para cargar.', 16, 1);
+        RETURN;
+    END;
+
+    SET @sql = N'
+        INSERT INTO silver.DIM_PREGUNTA_RENAMU
+        (IdPadre, NOMBRE_CAMPO, DESCRIPCION, VALOR, METADATA)
+        SELECT DISTINCT
+            NULL,
+            v.NOMBRE_CAMPO,
+            v.NOMBRE_CAMPO,
+            ISNULL(v.VALOR, ''''),
+            ''RENAMU_2020''
+        FROM bronze.renamu_municipalidades_2020_raw r
+        CROSS APPLY (VALUES ' + @values + N') v(NOMBRE_CAMPO, VALOR)
+        WHERE v.NOMBRE_CAMPO IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1
+              FROM silver.DIM_PREGUNTA_RENAMU d
+              WHERE d.NOMBRE_CAMPO = v.NOMBRE_CAMPO
+                AND d.VALOR = ISNULL(v.VALOR, '''')
+                AND d.METADATA = ''RENAMU_2020''
+          );
+
+        INSERT INTO silver.FACT_RENAMU
+        (IdTiempo, IdUbigeo, TIPOMUNI, IdPregunta)
+        SELECT
+            2020,
+            u.IdUbigeo,
+            ISNULL(TRY_CONVERT(INT, r.Tipomuni), 0),
+            d.IdPregunta
+        FROM bronze.renamu_municipalidades_2020_raw r
+        INNER JOIN silver.DIM_UBIGEO u
+            ON u.CODIGODEPARTAMENTO = TRY_CONVERT(INT, r.ccdd)
+           AND u.CODIGOPROVINCIA = TRY_CONVERT(INT, r.ccpp)
+           AND u.CODIGODISTRITO = TRY_CONVERT(INT, r.ccdi)
+        CROSS APPLY (VALUES ' + @values + N') v(NOMBRE_CAMPO, VALOR)
+        INNER JOIN silver.DIM_PREGUNTA_RENAMU d
+            ON d.NOMBRE_CAMPO = v.NOMBRE_CAMPO
+           AND d.VALOR = ISNULL(v.VALOR, '''')
+           AND d.METADATA = ''RENAMU_2020'';
+    ';
+
+    EXEC sp_executesql @sql;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE silver.sp_Load_Silver_All
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC silver.sp_Silver_Load_Dimensions_Ingresos;
+    EXEC silver.sp_Silver_Load_Dimensions_Sismepre;
+    EXEC silver.sp_Silver_Load_Fact_Ingreso_Diario;
+    EXEC silver.sp_Silver_Load_Fact_Formulario_Sismepre;
+    EXEC silver.sp_Silver_Load_Renamu;
+END;
+GO
+
+/* ============================================================
+   5) VALIDACIÓN RÁPIDA
+   ============================================================ */
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'silver'
+ORDER BY TABLE_NAME;
+GO
+
+
+EXEC silver.sp_Load_Silver_All;

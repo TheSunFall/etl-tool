@@ -3,7 +3,7 @@
 - Python (probado en 3.14)
 - uv (https://docs.astral.sh/uv/)
 - Driver odbc
-    - Instalación en ubuntu: `sudo apt-get install msodbcsql18`
+    - Instalación en Ubuntu: `sudo apt-get install msodbcsql18`
     - Instalación en Windows: https://learn.microsoft.com/es-es/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver17
 
 # Instalación
@@ -13,7 +13,7 @@
 # Uso
 Ejecución del web scrapper:
 `uv run scrapper/fetch.py -s [año inicio] -e [año fin]
-`uv run main.py stage --all -o --gen-schema`
+`uv run main.py stage --all -o --gen-schema --drop`
 
 # Features
 ## Stage
